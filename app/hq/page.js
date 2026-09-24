@@ -361,7 +361,7 @@ export default function GlobalHQ() {
       let csvContent = "Serial Number,QR URL\n";
 
       for (const tag of newTags) {
-        const targetUrl = `https://kidshield-v2.vercel.app/scan/${tag.uuid}`;
+        const targetUrl = `https://kidprotect.vercel.app/scan/${tag.uuid}`;
         csvContent += `${tag.serial_number},${targetUrl}\n`;
         
         const qrDataUri = await QRCode.toDataURL(targetUrl, { 

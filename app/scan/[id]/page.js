@@ -78,8 +78,39 @@ export default function QRScanReceiver() {
   };
 
   const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+    setFormData({ ...formData, [name]: value });
   };
+
+  const handlePhoneChange = (e) => {
+    const { name, value } = e.currentTarget;
+    const digits = value.replace(/\D/g, '').slice(0, 10);
+    setFormData(prev => ({ ...prev, [name]: digits }));
+  };
+
+  const handlePhoneBeforeInput = (e) => {
+    if (e.data && /\D/.test(e.data)) {
+      e.preventDefault();
+    }
+  };
+
+  const handlePhoneKeyDown = (e) => {
+    const allowedKeys = ['Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'Home', 'End', 'Tab'];
+    if (!allowedKeys.includes(e.key) && !/^\d$/.test(e.key)) {
+      e.preventDefault();
+    }
+  };
+
+  const getLocalPhoneNumber = (phone) => {
+    const digits = (phone || '').replace(/\D/g, '');
+    return digits.startsWith('91') && digits.length === 12 ? digits.slice(2) : digits.slice(-10);
+  };
+
+  const getStoredFormData = () => ({
+    ...formData,
+    contact_phone: `+91${formData.contact_phone}`,
+    emergency_phone: `+91${formData.emergency_phone}`
+  });
 
   // --- PRIVACY HELPER FUNCTIONS ---
   const maskPhoneNumber = (phone) => {
@@ -105,8 +136,8 @@ export default function QRScanReceiver() {
         grade: studentData.grade || '',
         section: studentData.section || '', // UPDATED: Pulls section into edit mode
         parent_name: studentData.parent_name || '',
-        contact_phone: studentData.contact_phone || '',
-        emergency_phone: studentData.emergency_phone || '',
+        contact_phone: getLocalPhoneNumber(studentData.contact_phone),
+        emergency_phone: getLocalPhoneNumber(studentData.emergency_phone),
         address: studentData.address || '',
         blood_group: studentData.blood_group || '',
         allergies: studentData.allergies || '',
@@ -128,6 +159,9 @@ export default function QRScanReceiver() {
   const handleRegistrationSubmit = async (e) => {
     e.preventDefault();
     if (formData.security_pin.length !== 6) return alert("Security PIN must be exactly 6 digits.");
+    if (![formData.contact_phone, formData.emergency_phone].every(phone => /^\d{10}$/.test(phone))) {
+      return alert("Primary and emergency phone numbers must each be exactly 10 digits.");
+    }
     
     setIsSubmitting(true);
     try {
@@ -135,7 +169,7 @@ export default function QRScanReceiver() {
         school_id: tagData.schools.id, 
         tag_uuid: tagData.uuid, 
         serial_number: tagData.serial_number, // <--- FIXED: Serial number is now saved
-        ...formData
+        ...getStoredFormData()
       }]).select();
       if (error) throw error;
 
@@ -151,11 +185,14 @@ export default function QRScanReceiver() {
   const handleUpdateSubmit = async (e) => {
     e.preventDefault();
     if (formData.security_pin.length !== 6) return alert("Security PIN must be exactly 6 digits.");
+    if (![formData.contact_phone, formData.emergency_phone].every(phone => /^\d{10}$/.test(phone))) {
+      return alert("Primary and emergency phone numbers must each be exactly 10 digits.");
+    }
 
     setIsSubmitting(true);
     try {
       const { data, error } = await supabase.from('students')
-        .update(formData)
+        .update(getStoredFormData())
         .eq('id', studentData.id)
         .select();
       if (error) throw error;
@@ -347,7 +384,7 @@ export default function QRScanReceiver() {
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             <div className="md:col-span-2">
-              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Child's Full Name *</label>
+              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Child&apos;s Full Name *</label>
               <input type="text" name="child_name" required value={formData.child_name} onChange={handleChange} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-medium" />
             </div>
             
@@ -394,7 +431,7 @@ export default function QRScanReceiver() {
               <label className="block text-xs font-bold text-indigo-400 uppercase tracking-wider mb-2 flex items-center gap-2">
                 <KeyRound size={14}/> 6-Digit Security PIN *
               </label>
-              <p className="text-xs text-slate-400 mb-3">Create a secure PIN. You will need this to edit or update your child's profile in the future.</p>
+              <p className="text-xs text-slate-400 mb-3">Create a secure PIN. You will need this to edit or update your child&apos;s profile in the future.</p>
               <input 
                 type="text" 
                 name="security_pin" 
@@ -421,11 +458,17 @@ export default function QRScanReceiver() {
             </div>
             <div>
               <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Primary Phone (SMS Alerts) *</label>
-              <input type="tel" name="contact_phone" required value={formData.contact_phone} onChange={handleChange} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-medium" />
+              <div className="flex">
+                <span className="flex items-center px-3 bg-slate-200 border border-r-0 border-slate-200 rounded-l-xl font-bold text-slate-600">+91</span>
+                <input type="text" name="contact_phone" required inputMode="numeric" pattern="[0-9]{10}" maxLength={10} value={formData.contact_phone} onKeyDown={handlePhoneKeyDown} onBeforeInput={handlePhoneBeforeInput} onChange={handlePhoneChange} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-r-xl focus:ring-2 focus:ring-indigo-500 outline-none font-medium" />
+              </div>
             </div>
             <div>
               <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Alt / Emergency Phone *</label>
-              <input type="tel" name="emergency_phone" required value={formData.emergency_phone} onChange={handleChange} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-medium" />
+              <div className="flex">
+                <span className="flex items-center px-3 bg-slate-200 border border-r-0 border-slate-200 rounded-l-xl font-bold text-slate-600">+91</span>
+                <input type="text" name="emergency_phone" required inputMode="numeric" pattern="[0-9]{10}" maxLength={10} value={formData.emergency_phone} onKeyDown={handlePhoneKeyDown} onBeforeInput={handlePhoneBeforeInput} onChange={handlePhoneChange} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-r-xl focus:ring-2 focus:ring-indigo-500 outline-none font-medium" />
+              </div>
             </div>
             <div className="md:col-span-2">
               <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Home Address</label>
