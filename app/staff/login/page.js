@@ -10,8 +10,6 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || '';
 const supabase = createClient(supabaseUrl, supabaseKey);
 
-const PIN_EXPIRY_DAYS = 30;
-
 export default function StaffLogin() {
   const router = useRouter();
   const [phone, setPhone] = useState('');
@@ -34,22 +32,13 @@ export default function StaffLogin() {
     try {
       const { data, error } = await supabase
         .from('staff')
-        .select('id, name, role, assigned_grade, phone, pin_hash, pin_changed_at, is_active')
+        .select('id, name, role, assigned_grade, phone, pin_hash, is_active')
         .eq('phone', phone.trim())
         .eq('pin_hash', pin.trim());
 
       if (error) throw error;
 
       const matchedUser = (data || []).find((row) => row.is_active);
-
-      const account = (data || [])[0];
-      const pinExpired = account?.pin_changed_at &&
-        Date.now() - new Date(account.pin_changed_at).getTime() >= PIN_EXPIRY_DAYS * 24 * 60 * 60 * 1000;
-
-      if (account && pinExpired) {
-        await supabase.from('staff').update({ is_active: false }).eq('id', account.id);
-        throw new Error('Your PIN has expired after 30 days. Contact an administrator to reactivate your account.');
-      }
 
       if (!matchedUser) {
         throw new Error('Unauthorized. Invalid username or password.');
