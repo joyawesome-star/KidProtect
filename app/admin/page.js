@@ -85,23 +85,10 @@ export default function AdminPortal() {
   const [noticeSuccess, setNoticeSuccess] = useState(false);
 
   const normalizeLoginPhone = (value) => {
-    const trimmedValue = value.trim();
-    const digits = trimmedValue.replace(/\D/g, '');
-
-    if (trimmedValue.startsWith('+')) {
-      return `+${digits}`;
-    }
-
-    const nationalNumber = digits.startsWith('91') && digits.length === 12
-      ? digits.slice(2)
-      : digits.startsWith('0') && digits.length === 11
-        ? digits.slice(1)
-        : digits;
-
-    return `+91${nationalNumber}`;
+    return /^\d{10}$/.test(value) ? `+91${value}` : '';
   };
 
-  const isValidLoginPhone = (value) => /^\+[1-9]\d{7,14}$/.test(value);
+  const isValidLoginPhone = (value) => /^\+91[6-9]\d{9}$/.test(value);
   const normalizeIndianPhone = (value) => {
     const digits = value.replace(/\D/g, '');
     const nationalNumber = digits.startsWith('91') && digits.length === 12
@@ -566,20 +553,20 @@ export default function AdminPortal() {
           )}
 
           <form onSubmit={handleLogin} className="space-y-3">
-            <input
-              type="tel"
-              inputMode="numeric"
-              maxLength={16}
-              pattern="\+?[0-9]{8,15}"
-              placeholder="Admin phone number"
-              value={loginPhone}
-              onChange={(e) => {
-                const value = e.target.value.replace(/[^\d+]/g, '');
-                setLoginPhone(value.startsWith('+') ? `+${value.slice(1).replace(/\+/g, '')}` : value.replace(/\+/g, ''));
-              }}
-              className="w-full px-4 py-3 border border-slate-200 rounded-xl text-center font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-900 bg-slate-50"
-              disabled={isLoggingIn}
-            />
+            <div className="flex">
+              <span className="flex items-center px-3 bg-slate-100 border border-r-0 border-slate-200 rounded-l-xl font-bold text-slate-600">+91</span>
+              <input
+                type="tel"
+                inputMode="numeric"
+                maxLength={10}
+                pattern="[0-9]{10}"
+                placeholder="10-digit phone number"
+                value={loginPhone}
+                onChange={(e) => setLoginPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
+                className="w-full min-w-0 px-4 py-3 border border-slate-200 rounded-r-xl text-center font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-900 bg-slate-50"
+                disabled={isLoggingIn}
+              />
+            </div>
             <div className="flex justify-center gap-2" role="group" aria-label="Six digit admin PIN">
               {Array.from({ length: 6 }, (_, index) => (
                 <input

@@ -28,14 +28,7 @@ export default function ParentDashboard() {
   const [isLoggingIn, setIsLoggingIn] = useState(false);
 
   const normalizeParentPhone = (value) => {
-    const digits = value.replace(/\D/g, '');
-    const nationalNumber = digits.startsWith('91') && digits.length === 12
-      ? digits.slice(2)
-      : digits.startsWith('0') && digits.length === 11
-        ? digits.slice(1)
-        : digits;
-
-    return `+91${nationalNumber}`;
+    return /^\d{10}$/.test(value) ? `+91${value}` : '';
   };
 
   // 1. FETCH PARENT'S CHILDREN FROM SUPABASE ON MOUNT
@@ -156,7 +149,7 @@ export default function ParentDashboard() {
   const handleLogin = async () => {
     setLoginError('');
     const normalizedPhone = normalizeParentPhone(loginPhone.trim());
-    if (!/^\+91[6-9]\d{9}$/.test(normalizedPhone) || !/^\d{6}$/.test(loginPin)) {
+    if (!/^\d{10}$/.test(loginPhone) || !normalizedPhone || !/^\d{6}$/.test(loginPin)) {
       setLoginError('Please enter your phone number and PIN.');
       return;
     }
@@ -216,13 +209,19 @@ export default function ParentDashboard() {
           )}
 
           <div className="space-y-3 mb-6">
-            <input
-              type="text"
-              placeholder="Phone number or +91 number"
-              value={loginPhone}
-              onChange={(e) => setLoginPhone(e.target.value)}
-              className="w-full px-4 py-3 border border-slate-200 rounded-xl text-center font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-600"
-            />
+            <div className="flex">
+              <span className="flex items-center px-3 bg-slate-100 border border-r-0 border-slate-200 rounded-l-xl font-bold text-slate-600">+91</span>
+              <input
+                type="tel"
+                inputMode="numeric"
+                pattern="[0-9]{10}"
+                maxLength={10}
+                placeholder="10-digit phone number"
+                value={loginPhone}
+                onChange={(e) => setLoginPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
+                className="w-full min-w-0 px-4 py-3 border border-slate-200 rounded-r-xl text-center font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-600"
+              />
+            </div>
             <div className="flex justify-center gap-2" role="group" aria-label="Six digit PIN">
               {Array.from({ length: 6 }, (_, index) => (
                 <input

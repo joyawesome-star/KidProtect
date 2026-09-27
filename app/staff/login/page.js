@@ -18,11 +18,13 @@ export default function StaffLogin() {
   const [errorMsg, setErrorMsg] = useState('');
   const [isAuthenticating, setIsAuthenticating] = useState(false);
 
+  const normalizeIndianPhone = (value) => `+91${value}`;
+
   const handleLogin = async (e) => {
     e.preventDefault();
     setErrorMsg('');
     
-    if (!phone || !pin || !/^\d{6}$/.test(pin)) {
+    if (!/^\d{10}$/.test(phone) || !/^\d{6}$/.test(pin)) {
       setErrorMsg('Please enter your phone number and PIN.');
       return;
     }
@@ -33,7 +35,7 @@ export default function StaffLogin() {
       const { data, error } = await supabase
         .from('staff')
         .select('id, name, role, assigned_grade, phone, pin_hash, is_active')
-        .eq('phone', phone.trim())
+        .eq('phone', normalizeIndianPhone(phone))
         .eq('pin_hash', pin.trim());
 
       if (error) throw error;
@@ -87,16 +89,20 @@ export default function StaffLogin() {
 
         {/* Login Form */}
         <form onSubmit={handleLogin} className="space-y-4">
-          <div className="relative">
-            <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400">
+          <div className="flex">
+            <div className="flex items-center pl-4 pr-3 border border-r-0 border-slate-200 rounded-l-xl text-slate-400">
               <UserCircle size={20} />
             </div>
+            <span className="flex items-center px-3 bg-slate-100 border border-r-0 border-slate-200 font-bold text-slate-600">+91</span>
             <input
-              type="text"
-              placeholder="Phone number"
+              type="tel"
+              inputMode="numeric"
+              pattern="[0-9]{10}"
+              maxLength={10}
+              placeholder="10-digit phone number"
               value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              className="w-full pl-12 pr-4 py-3 border border-slate-200 rounded-xl text-left font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-600 transition"
+              onChange={(e) => setPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
+              className="w-full min-w-0 px-3 py-3 border border-slate-200 rounded-r-xl text-left font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-600 transition"
               disabled={isAuthenticating}
             />
           </div>
