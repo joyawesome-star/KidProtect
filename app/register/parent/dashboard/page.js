@@ -27,6 +27,17 @@ export default function ParentDashboard() {
   const [loginError, setLoginError] = useState('');
   const [isLoggingIn, setIsLoggingIn] = useState(false);
 
+  const normalizeParentPhone = (value) => {
+    const digits = value.replace(/\D/g, '');
+    const nationalNumber = digits.startsWith('91') && digits.length === 12
+      ? digits.slice(2)
+      : digits.startsWith('0') && digits.length === 11
+        ? digits.slice(1)
+        : digits;
+
+    return `+91${nationalNumber}`;
+  };
+
   // 1. FETCH PARENT'S CHILDREN FROM SUPABASE ON MOUNT
   useEffect(() => {
     async function loadParentData() {
@@ -144,7 +155,8 @@ export default function ParentDashboard() {
   // 3. SECURE LOGIN HANDLER
   const handleLogin = async () => {
     setLoginError('');
-    if (!loginPhone || !/^\d{6}$/.test(loginPin)) {
+    const normalizedPhone = normalizeParentPhone(loginPhone.trim());
+    if (!/^\+91[6-9]\d{9}$/.test(normalizedPhone) || !/^\d{6}$/.test(loginPin)) {
       setLoginError('Please enter your phone number and PIN.');
       return;
     }
@@ -155,7 +167,7 @@ export default function ParentDashboard() {
       const { data, error } = await supabase
         .from('parent_accounts')
         .select('id, name, phone, pin_hash, is_active')
-        .eq('phone', loginPhone.trim())
+        .eq('phone', normalizedPhone)
         .eq('pin_hash', loginPin.trim())
         .eq('is_active', true)
         .maybeSingle();
@@ -197,7 +209,7 @@ export default function ParentDashboard() {
             <Lock size={24} />
           </div>
           <h2 className="text-xl font-black text-slate-800 mb-1">Parent Portal Login</h2>
-          <p className="text-xs text-slate-500 mb-6">Enter your credentials to view your children's dashboard.</p>
+          <p className="text-xs text-slate-500 mb-6">Enter your credentials to view your children&apos;s dashboard.</p>
           
           {loginError && (
             <p className="text-xs text-red-600 font-semibold mb-4 bg-red-50 p-2 rounded-xl">{loginError}</p>
@@ -206,7 +218,7 @@ export default function ParentDashboard() {
           <div className="space-y-3 mb-6">
             <input
               type="text"
-              placeholder="Phone number"
+              placeholder="Phone number or +91 number"
               value={loginPhone}
               onChange={(e) => setLoginPhone(e.target.value)}
               className="w-full px-4 py-3 border border-slate-200 rounded-xl text-center font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-600"

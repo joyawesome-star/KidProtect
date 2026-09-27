@@ -165,15 +165,64 @@ export default function QRScanReceiver() {
     
     setIsSubmitting(true);
     try {
+      const storedFormData = getStoredFormData();
       const { data, error } = await supabase.from('students').insert([{
         school_id: tagData.schools.id, 
         tag_uuid: tagData.uuid, 
         serial_number: tagData.serial_number, // <--- FIXED: Serial number is now saved
-        ...getStoredFormData()
+        ...storedFormData
       }]).select();
       if (error) throw error;
 
-      await supabase.from('tags').update({ status: 'active' }).eq('uuid', tagData.uuid);
+      const { data: existingParent, error: parentLookupError } = await supabase
+        .from('parent_accounts')
+        .select('id')
+        .eq('phone', storedFormData.contact_phone)
+        .maybeSingle();
+      if (parentLookupError) throw parentLookupError;
+
+      let parentId = existingParent?.id;
+      if (!parentId) {
+        const { data: newParent, error: parentInsertError } = await supabase
+          .from('parent_accounts')
+          .insert([{
+            name: formData.parent_name.trim(),
+            phone: storedFormData.contact_phone,
+            pin_hash: formData.security_pin,
+            is_active: true
+          }])
+          .select('id')
+          .single();
+
+        if (parentInsertError?.code === '23505') {
+          const { data: concurrentParent, error: concurrentLookupError } = await supabase
+            .from('parent_accounts')
+            .select('id')
+            .eq('phone', storedFormData.contact_phone)
+            .single();
+          if (concurrentLookupError) throw concurrentLookupError;
+          parentId = concurrentParent.id;
+        } else if (parentInsertError) {
+          throw parentInsertError;
+        } else {
+          parentId = newParent.id;
+        }
+      }
+
+      const { error: linkError } = await supabase
+        .from('parent_students')
+        .upsert(
+          { parent_id: parentId, student_id: data[0].id },
+          { onConflict: 'parent_id,student_id', ignoreDuplicates: true }
+        );
+      if (linkError) throw linkError;
+
+      const { error: tagUpdateError } = await supabase
+        .from('tags')
+        .update({ status: 'active' })
+        .eq('uuid', tagData.uuid);
+      if (tagUpdateError) throw tagUpdateError;
+
       setStudentData(data[0]);
     } catch (err) {
       alert("Registration failed: " + err.message);
